@@ -69,10 +69,10 @@ Point2d newTip(FINGER_DATA& f, HAND_DATA& h, vector<Point2d>& out_joints) {
 	Mat _newTip = (Mat_<double>(1,2) << f.origin_offset.x, f.origin_offset.y);
 	_newTip *= rotationMat((h.a - 0.5)*HALF_PI);				//hand angle
 	
-	Mat vM = (Mat_<double>(1,2) << 1 , 0);
+	Mat vM = (Mat_<double>(1,2) << 1 , 0); //unit vector
 	vM *= rotationMat(f.a) * rotationMat((h.a - 0.5)*HALF_PI);	//intial angle
 	
-	out_joints.push_back(*((Point2d*)(_newTip.data)));			//first joint
+	out_joints.push_back(*((Point2d*)(_newTip.data)));			//save first joint
 	
 	for (int i=0; i < f.joints_a.size(); i++) {
 		vM *= rotationMat(f.joints_a[i]);						//angle of joint
@@ -80,7 +80,7 @@ Point2d newTip(FINGER_DATA& f, HAND_DATA& h, vector<Point2d>& out_joints) {
 		out_joints.push_back(*((Point2d*)(_newTip.data)));		//save joint
 	}
 	
-	_newTip.at<Point2d>(0,0) += getHandOrigin(h);				//move to offset
+	_newTip.at<Point2d>(0,0) += getHandOrigin(h);				//move to offset to get coords in real-world axes
 	
 	return *((Point2d*)(_newTip.data));
 }
@@ -266,13 +266,13 @@ static int my_f(double x[], double *f, double g[], void *state) {
 }
 
 Scalar refineSegments(const Mat& img, 
-					  Mat& mask, 
+					  const Mat& mask, 
 					  Mat& dst, 
 					  vector<Point>& contour,
 					  vector<Point>& second_contour,
 					  Point2i& previous);
 
-void initialize_hand_data(DATA_FOR_TNC& d, Mat& mymask) {
+void initialize_hand_data(DATA_FOR_TNC& d, const Mat& mymask) {
 	/*
 //	{
 //		FileStorage fs("/Users/royshilkrot/Downloads/depthjs/cv/DepthJS/build/Debug/fist_handpoints.yaml",FileStorage::READ);
@@ -332,9 +332,11 @@ void initialize_hand_data(DATA_FOR_TNC& d, Mat& mymask) {
 	refineSegments(Mat(), mymask, hand_template_img, contour, second_contour,tmpPoint);
 	d.hand.origin = tmpPoint;
 
-	vector<Point> approxCurve;
-	approxPolyDP(Mat(contour), approxCurve, 3.0, true);
-	Mat(approxCurve).copyTo(d.contour);
+	if (contour.size()>0) {
+		vector<Point> approxCurve;
+		approxPolyDP(Mat(contour), approxCurve, 3.0, true);
+		Mat(approxCurve).copyTo(d.contour);
+	}
 	
 //	Mat lap;
 //	calc_laplacian(d.contour, lap);
@@ -366,9 +368,9 @@ void initialize_hand_data(DATA_FOR_TNC& d, Mat& mymask) {
 			//		cout << a << "," << ((double*)v.data)[0] << "," << ((double*)v.data)[1] << endl;
 			
 			d.hand.fingers[i].origin_offset = *((Point2d*)v.data);
-			d.hand.fingers[i].joints_a.assign(1,0.0);
-			d.hand.fingers[i].joints_d.assign(1,0.89);
-			d.hand.fingers[i].a = -(9*CV_PI/16) + i*(CV_PI/16);
+			d.hand.fingers[i].joints_a.assign(3,0.0);
+			d.hand.fingers[i].joints_d.assign(3,0.29);
+			d.hand.fingers[i].a = -(19*CV_PI/32) + i*(CV_PI/16);
 		}
 		//toe..
 		{
@@ -376,8 +378,8 @@ void initialize_hand_data(DATA_FOR_TNC& d, Mat& mymask) {
 			v = v.t() * rotationMat(CV_PI*3/16);
 			
 			d.hand.fingers[4].origin_offset = *((Point2d*)v.data);
-			d.hand.fingers[4].joints_a.assign(1,0.0);
-			d.hand.fingers[4].joints_d.assign(1,1.0 / 2.0);
+			d.hand.fingers[4].joints_a.assign(2,0.0);
+			d.hand.fingers[4].joints_d.assign(2,1.0 / 4.0);
 			d.hand.fingers[4].a = -CV_PI/4;
 		}
 		
@@ -421,6 +423,11 @@ void estimateHand(Mat& mymask) {
 
 
 int main (int argc, const char * argv[]) {
+	initialize_hand_data(d, Mat::zeros(Size(640,480), CV_8UC1));
+	d.hand.origin = Point(320,240);
+	showstate(d, 0);
+	return 1;
+	
 	VideoCapture capture("output.avi");
 	if(capture.isOpened() == false) return 1;
 	

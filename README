@@ -3,3 +3,11 @@ It is developed in the Fluid Interfaces group of the MIT Media Lab.
 
 initial results:
 http://www.youtube.com/watch?v=uETHJQhK144
+
+(Vauge) Build instructions
+- Create a project in your favorite DevEnv (MSVS2008/2010, XCode, CodeBlocks, Eclipse, a Makefile ?!)
+- Add all these .c,.cpp,.h files into the project
+- Add OpenCV and libfreenect include directories and library directories
+- Build & Run
+
+This is not for complete beginners, but a begginers will benefit a lot from trying to build and tinker around. Please do so.
