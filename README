@@ -10,4 +10,7 @@ http://www.youtube.com/watch?v=uETHJQhK144
 - Add OpenCV and libfreenect include directories and library directories
 - Build & Run
 
-This is not for complete beginners, but a begginers will benefit a lot from trying to build and tinker around. Please do so.
+This is not for complete beginners, but a beginners will benefit a lot from trying to build and tinker around. Please do so.
+
+Walkthrough of the code:
+http://www.morethantechnical.com/2010/12/28/hand-gesture-recognition-via-model-fitting-in-energy-minimization-wopencv/
