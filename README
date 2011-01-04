@@ -10,6 +10,10 @@ http://www.youtube.com/watch?v=uETHJQhK144
 - Add OpenCV and libfreenect include directories and library directories
 - Build & Run
 
+Concrete Build instructions
+- run `cmake .`, make sure CMake knows which build system you want (Unix Makefile, XCode, MSVS, etc), and OpenCV libraries are well defined
+- run `make` / build in your IDE
+
 This is not for complete beginners, but a beginners will benefit a lot from trying to build and tinker around. Please do so.
 
 Walkthrough of the code:
