@@ -428,7 +428,7 @@ int main (int argc, const char * argv[]) {
 	showstate(d, 0);
 //	return 1;
 	
-	VideoCapture capture("output.avi");
+	VideoCapture capture("../../output.avi");
 	if(capture.isOpened() == false) return 1;
 	
 	writer.open("estimator.avi",CV_FOURCC('x', 'v', 'i', 'd'),25.0,Size(640,480));
