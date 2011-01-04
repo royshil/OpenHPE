@@ -368,8 +368,8 @@ void initialize_hand_data(DATA_FOR_TNC& d, const Mat& mymask) {
 			//		cout << a << "," << ((double*)v.data)[0] << "," << ((double*)v.data)[1] << endl;
 			
 			d.hand.fingers[i].origin_offset = *((Point2d*)v.data);
-			d.hand.fingers[i].joints_a.assign(3,0.0);
-			d.hand.fingers[i].joints_d.assign(3,0.29);
+			d.hand.fingers[i].joints_a.assign(1,0.0);
+//			d.hand.fingers[i].joints_d.assign(3,0.29);
 			d.hand.fingers[i].a = -(19*CV_PI/32) + i*(CV_PI/16);
 		}
 		//toe..
@@ -378,8 +378,8 @@ void initialize_hand_data(DATA_FOR_TNC& d, const Mat& mymask) {
 			v = v.t() * rotationMat(CV_PI*3/16);
 			
 			d.hand.fingers[4].origin_offset = *((Point2d*)v.data);
-			d.hand.fingers[4].joints_a.assign(2,0.0);
-			d.hand.fingers[4].joints_d.assign(2,1.0 / 4.0);
+			d.hand.fingers[4].joints_a.assign(1,0.0);
+//			d.hand.fingers[4].joints_d.assign(2,1.0 / 4.0);
 			d.hand.fingers[4].a = -CV_PI/4;
 		}
 		
@@ -426,7 +426,7 @@ int main (int argc, const char * argv[]) {
 	initialize_hand_data(d, Mat::zeros(Size(640,480), CV_8UC1));
 	d.hand.origin = Point(320,240);
 	showstate(d, 0);
-	return 1;
+//	return 1;
 	
 	VideoCapture capture("output.avi");
 	if(capture.isOpened() == false) return 1;
