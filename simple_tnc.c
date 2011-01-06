@@ -7,7 +7,7 @@
 static tnc_function function;
 
 int simple_tnc(int n, double x[], /*double _xopt[],*/ double *f, double g[], tnc_function *function, void* state, double ubound, double lbound) {
-	int i, rc, maxCGit = 5, maxnfeval = 350, nfeval;
+	int i, rc, maxCGit = 5, maxnfeval = 100, nfeval;
 	double fopt = 1.0,
 	*low, *up,
     eta = -1.0, stepmx = 10.0,

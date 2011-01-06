@@ -65,6 +65,7 @@ inline Point2d getHandOrigin (HAND_DATA& h) { return h.origin + 40*(h.origin_off
 					  
 #define HALF_PI 1.57079633
 
+//get the positiong of the finger's tip, and all joints on the way
 Point2d newTip(FINGER_DATA& f, HAND_DATA& h, vector<Point2d>& out_joints) {
 	Mat _newTip = (Mat_<double>(1,2) << f.origin_offset.x, f.origin_offset.y);
 	_newTip *= rotationMat((h.a - 0.5)*HALF_PI);				//hand angle
@@ -129,12 +130,18 @@ void mapDataToVec(double X[], HAND_DATA& h) {
 //	}
 }
 
+Mat hand_template_img;
+VideoWriter writer;
+
+
 static double calc_Energy(DATA_FOR_TNC& d, DATA_FOR_TNC& orig_d) {
 	double _sum = 0.0;
 	
 	//external energy: closness of tips ot target points
 	vector<Point2d> tmp;
 	Mat tips(5,1,CV_64FC2);
+	
+	Point2d hand_origin = getHandOrigin(d.hand);
 	
 	for (int j=0; j<5; j++) {
 		tmp.clear();
@@ -148,11 +155,21 @@ static double calc_Energy(DATA_FOR_TNC& d, DATA_FOR_TNC& orig_d) {
 //		}
 //		_sum += closest;
 
+		//Check each joint (and tip) to see if they are inside the blob or outise
 		for (int i=0; i<tmp.size(); i++) {
-			double ds = pointPolygonTest(d.contour, tmp[i]+getHandOrigin(d.hand), true);
+			double ds = pointPolygonTest(d.contour, tmp[i]+hand_origin, true);
 			ds += 5;
-			ds = 1 * ((ds < 0) ? -1 : 1) * (ds*ds) ;
-			_sum -= (ds > 0) ? 0 : 100*ds;
+			ds = 1 * ((ds < 0) ? -1 : 1) * (ds*ds) ;	//quadratic
+			_sum -= (ds > 0) ? 0 : 300*ds;
+			
+			//add some midway points..
+			if(i>1) {
+				Point2d midp = tmp[i]+tmp[i-1]; midp.x /= 2.0; midp.y /= 2.0;
+				ds = pointPolygonTest(d.contour, midp+hand_origin, true);
+				ds += 5;
+				ds = 1 * ((ds < 0) ? -1 : 1) * (ds*ds) ;	//quadratic
+				_sum -= (ds > 0) ? 0 : 300*ds;				
+			}
 		}
 		
 		tips.at<Point2d>(j,0) = _newTip;
@@ -189,19 +206,36 @@ static double calc_Energy(DATA_FOR_TNC& d, DATA_FOR_TNC& orig_d) {
 	_angles.push_back(d.hand.a-orig_d.hand.a);
 	_sum  += 10000*norm(Mat(_angles));
 	
+
+	//count how many black pixels there are inside the palm, to help it stay in the middle
+	int nz = 0;
+	try {
+		Mat _tmp(d.hand.palm_size,d.hand.palm_size,CV_8UC1,Scalar(0));
+		int h_ps = d.hand.palm_size/2;
+		circle(_tmp, Point(h_ps,h_ps), h_ps, Scalar(255), CV_FILLED);
+		
+		Mat blobC = hand_template_img(
+									  Range(MAX((int)floor(hand_origin.y-h_ps),0),MIN((int)floor(hand_origin.y+h_ps),hand_template_img.rows-1)),
+									  Range(MAX((int)floor(hand_origin.x-h_ps),0),MIN((int)floor(hand_origin.x+h_ps),hand_template_img.cols-1))
+									  );
+		
+		if (blobC.size() == _tmp.size()) {
+			Mat(blobC ^ _tmp).copyTo(_tmp,_tmp);//xor
+			nz = countNonZero(_tmp);
+		}
+	} catch (cv::Exception) {}
+	_sum += nz * 1000;
+	
 	if(_sum < 0) return 0;
 	return _sum;
 }
-
-Mat hand_template_img;
-VideoWriter writer;
 
 int showstate(DATA_FOR_TNC& d, int waittime) {
 	Mat img; //(200,200,CV_8UC3,Scalar(255,255,255));
 	cvtColor(hand_template_img,img,CV_GRAY2BGR);
 	
 	Point2d hand_origin = getHandOrigin(d.hand);
- 	circle(img, hand_origin, 4, Scalar(255,150,0), 2);
+ 	circle(img, hand_origin, d.hand.palm_size/2, Scalar(255,150,0), CV_FILLED);
 	
 	vector<Point2d> joints; 
 	for (int j=0; j<5; j++) {
@@ -223,6 +257,8 @@ int showstate(DATA_FOR_TNC& d, int waittime) {
 		}		
 	}
 	
+	cout << "origin " << hand_origin.x << "," << hand_origin.y << endl;
+		
 //	for (int i=0; i<d.targets.size(); i++) {
 //		circle(img, d.targets[i], 3, Scalar(0,244,0), 2);
 //	}
@@ -233,7 +269,8 @@ int showstate(DATA_FOR_TNC& d, int waittime) {
 	
 	imshow("state",img);
 	writer << img;
-	return waitKey(waittime); 
+	if(waittime >= 0) return waitKey(waittime); 
+				else return -1;
 }
 
 static tnc_function my_f;
@@ -350,19 +387,21 @@ void initialize_hand_data(DATA_FOR_TNC& d, const Mat& mymask) {
 //	}
 	
 	d.hand.origin_offset = Point2d(0.5,0.5);
-	d.hand.a = (d.initialized) ? d.hand.a * .8 + 0.1 : 0.5;	//interpolate from last time or reset to .5
+	d.hand.a = (d.initialized) ? d.hand.a /* .8 + 0.1*/ : 0.5;	//interpolate from last time or reset to .5
 	
+	//reset the joints lengths to maximum
 	for (int i=0; i<5; i++) {
 		d.hand.fingers[i].joints_d.assign(1,(i<4)?0.89:0.40);
 	}
 	
 	if (!d.initialized) {
 		d.hand.size = 60;
+		d.hand.palm_size = 80;
 		 //CV_PI/8;
-
+		
 		for (int i=0; i<4; i++) {
-			double a = -(11*CV_PI/16) + i*(CV_PI/8);
-			Mat v(Point2d(d.hand.size*7/8,0));
+			double a = -(13*CV_PI/16) + i*(CV_PI*6/32);	//finger's base angle in respest to center palm
+			Mat v(Point2d(d.hand.size*11/16,0));		//length from center palm to finger base
 			v = v.t() * rotationMat(a);
 			
 			//		cout << a << "," << ((double*)v.data)[0] << "," << ((double*)v.data)[1] << endl;
@@ -370,11 +409,11 @@ void initialize_hand_data(DATA_FOR_TNC& d, const Mat& mymask) {
 			d.hand.fingers[i].origin_offset = *((Point2d*)v.data);
 			d.hand.fingers[i].joints_a.assign(1,0.0);
 //			d.hand.fingers[i].joints_d.assign(3,0.29);
-			d.hand.fingers[i].a = -(19*CV_PI/32) + i*(CV_PI/16);
+			d.hand.fingers[i].a = -(19*CV_PI/32) + i*(CV_PI/16);	//finger's angle in respect to base
 		}
 		//toe..
 		{
-			Mat v(Point2d(d.hand.size*.8,0));
+			Mat v(Point2d(d.hand.size*6/8,0));
 			v = v.t() * rotationMat(CV_PI*3/16);
 			
 			d.hand.fingers[4].origin_offset = *((Point2d*)v.data);
@@ -416,7 +455,8 @@ void estimateHand(Mat& mymask) {
 	simple_tnc(SIZE_OF_HAND_DATA, (double*)X.data, &f, (double*)gradients.data, my_f, (void*)&d, 1, 0);
 	
 	mapVecToData((double*)X.data, d.hand);
-	showstate(d,1);
+
+	showstate(d,-1);
 	
 	d.hand.origin = getHandOrigin(d.hand); //move to new position
 }
@@ -431,7 +471,7 @@ int main (int argc, const char * argv[]) {
 	VideoCapture capture("../../output.avi");
 	if(capture.isOpened() == false) return 1;
 	
-	writer.open("estimator.avi",CV_FOURCC('x', 'v', 'i', 'd'),25.0,Size(640,480));
+	writer.open("estimator.avi",CV_FOURCC('x', 'v', 'i', 'd'),15.0,Size(640,480));
 	
 	Mat img;
 	
@@ -442,7 +482,9 @@ int main (int argc, const char * argv[]) {
 		Mat gray; cvtColor(img, gray, CV_BGR2GRAY);
 		estimateHand(gray);
 		
-		if(waitKey(1)==27) break;
+		int c = waitKey(30);
+		if(c==27) break;
+		else if(c=='p') waitKey(0);
 	}
 	
 	capture.release();

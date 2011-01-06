@@ -1,4 +1,4 @@
-#define SIZE_OF_HAND_DATA 12
+#define SIZE_OF_HAND_DATA 8
 
 
 typedef struct finger_data {
@@ -14,12 +14,14 @@ typedef struct hand_data {
 	Point2d origin;				//center of palm
 	Point2d origin_offset;		//offset from center for optimization
 	double size;				//relative size of hand = length of a finger
+	double palm_size;
 } HAND_DATA;
 
 typedef struct data_for_tnc {
 	vector<Point2d> targets;	//points to reach
 	HAND_DATA hand;
 	Mat contour;
+	Mat hand_blob;				//8bit (1bit) mask of the hand
 	
 	bool initialized;
 } DATA_FOR_TNC;
