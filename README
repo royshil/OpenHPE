@@ -2,7 +2,8 @@ OpenHPE is an open source Hand Pose Estimator using OpenCV, tnc.c, libfreenect.
 It is developed in the Fluid Interfaces group of the MIT Media Lab.
 
 initial results:
-http://www.youtube.com/watch?v=uETHJQhK144
+1. http://www.youtube.com/watch?v=uETHJQhK144
+2. http://www.youtube.com/watch?v=PO1KPdiG2us
 
 (Vauge) Build instructions
 - Create a project in your favorite DevEnv (MSVS2008/2010, XCode, CodeBlocks, Eclipse, a Makefile ?!)
